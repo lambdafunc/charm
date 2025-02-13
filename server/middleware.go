@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
-	"crypto"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
+
+	"github.com/charmbracelet/log"
+	"gopkg.in/go-jose/go-jose.v2"
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
@@ -64,7 +65,7 @@ func PublicPrefixesMiddleware(prefixes []string) func(http.Handler) http.Handler
 
 // JWTMiddleware creates a new middleware function that will validate JWT
 // tokens based on the supplied public key.
-func JWTMiddleware(pk crypto.PublicKey, iss string, aud []string) (func(http.Handler) http.Handler, error) {
+func JWTMiddleware(pk jose.JSONWebKey, iss string, aud []string) (func(http.Handler) http.Handler, error) {
 	jm, err := jwtMiddlewareImpl(pk, iss, aud)
 	if err != nil {
 		return nil, err
@@ -90,7 +91,7 @@ func CharmUserMiddleware(s *HTTPServer) func(http.Handler) http.Handler {
 			} else {
 				id, err := charmIDFromRequest(r)
 				if err != nil {
-					log.Printf("cannot get charm id from request: %s", err)
+					log.Error("cannot get charm id from request", "err", err)
 					s.renderError(w)
 					return
 				}
@@ -99,7 +100,7 @@ func CharmUserMiddleware(s *HTTPServer) func(http.Handler) http.Handler {
 					s.renderCustomError(w, fmt.Sprintf("missing user for id '%s'", id), http.StatusNotFound)
 					return
 				} else if err != nil {
-					log.Printf("cannot read request body: %s", err)
+					log.Error("cannot read request body", "err", err)
 					s.renderError(w)
 					return
 				}
@@ -113,7 +114,7 @@ func CharmUserMiddleware(s *HTTPServer) func(http.Handler) http.Handler {
 func isPublic(r *http.Request) bool {
 	public, ok := r.Context().Value(ctxPublicKey).(bool)
 	if !ok {
-		log.Print("cannot get public value from context")
+		log.Debug("cannot get public value from context")
 		return false
 	}
 
@@ -133,9 +134,12 @@ func charmIDFromRequest(r *http.Request) (string, error) {
 	return sub, nil
 }
 
-func jwtMiddlewareImpl(pk crypto.PublicKey, iss string, aud []string) (func(http.Handler) http.Handler, error) {
-	kf := func(ctx context.Context) (interface{}, error) {
-		return pk, nil
+func jwtMiddlewareImpl(pk jose.JSONWebKey, iss string, aud []string) (func(http.Handler) http.Handler, error) {
+	kf := func(context.Context) (interface{}, error) {
+		jwks := jose.JSONWebKeySet{
+			Keys: []jose.JSONWebKey{pk},
+		}
+		return &jwks, nil
 	}
 	v, err := validator.New(
 		kf,

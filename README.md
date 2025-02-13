@@ -1,8 +1,42 @@
+# Sunsetting Charm Cloud
+
+To continue innovating in this space and supporting our larger projects, we need to keep our team focused on the most impactful work. On **29 November 2024**, we sunset Charm Cloud.
+
+The code will continue to be open source and publicly available. If you love this project and would like to maintain a fork, please do.
+
+[Learn more](https://github.com/charmbracelet/charm/blob/main/docs/self-hosting.md) about self-hosting Charm Cloud.
+
+## Impacted tools
+
+To configure both [Skate](https://github.com/charmbracelet/skate) and [Glow](https://github.com/charmbracelet/glow) to work with your own server, you'll need to update the Charm Cloud client environment variables. Glow historically integrated into the Charm Cloud via a stashing feature, but as of [Skate v1.0.0][skatev1] and [Glow v2.0.0][glowv2] the Charm Cloud integration in both applications has been removed (Skate now operates on a local database: to migrate your data see the [Skate v1.0.0 Release Notes][skatev1]). For those using older versions, you can continue to use Charm Cloud features with your own server. Here are the relevant environment variables:
+
+```go
+// Config contains the Charm client configuration.
+type Config struct {
+  Host        string `env:"CHARM_HOST" envDefault:"cloud.charm.sh"`
+  SSHPort     int    `env:"CHARM_SSH_PORT" envDefault:"35353"`
+  HTTPPort    int    `env:"CHARM_HTTP_PORT" envDefault:"35354"`
+  Debug       bool   `env:"CHARM_DEBUG" envDefault:"false"`
+  Logfile     string `env:"CHARM_LOGFILE" envDefault:""`
+  KeyType     string `env:"CHARM_KEY_TYPE" envDefault:"ed25519"`
+  DataDir     string `env:"CHARM_DATA_DIR" envDefault:""`
+  IdentityKey string `env:"CHARM_IDENTITY_KEY" envDefault:""`
+}
+```
+Source: [https://github.com/charmbracelet/charm/blob/main/client/client.go](https://github.com/charmbracelet/charm/blob/main/client/client.go#L28-L37)
+
+Thanks for using the Charm Cloud and please chat us up in [Discord](https://charm.sh/chat) if you have any questions.
+
+[glowv2]: https://github.com/charmbracelet/glow/releases/tag/v2.0.0
+[skatev1]: https://github.com/charmbracelet/skate/releases/tag/v1.0.0
+
+***
+
 Charm
 =====
 
 <p>
-  <img src="https://stuff.charm.sh/charm/charm-header.png?8" width="317" alt="A little cloud with a pleased expression followed by the words ‘Charm from Charm’"><br>
+  <img src="https://stuff.charm.sh/charm/charm-header.png?14" width="220" alt="A little cloud with a pleased expression followed by the words ‘Charm from Charm’"><br>
   <a href="https://github.com/charmbracelet/charm/releases"><img src="https://img.shields.io/github/release/charmbracelet/charm.svg" alt="Latest Release"></a>
   <a href="https://pkg.go.dev/github.com/charmbracelet/charm?tab=doc"><img src="https://godoc.org/github.com/golang/gddo?status.svg" alt="GoDoc"></a>
   <a href="https://github.com/charmbracelet/charm/actions"><img src="https://github.com/charmbracelet/charm/workflows/build/badge.svg" alt="Build Status"></a>
@@ -12,8 +46,6 @@ Charm
 Charm is a set of tools that makes adding a backend to your terminal-based
 applications fun and easy. Quickly build modern CLI applications without
 worrying about user accounts, data storage and encryption.
-
-Charm powers terminal apps like [Glow][glow] and [Skate][skate].
 
 ## Features
 
@@ -25,6 +57,47 @@ Charm powers terminal apps like [Glow][glow] and [Skate][skate].
 There’s also the powerful [Charm Client](#charm-client) for directly accessing
 Charm services. [Self-hosting](#self-hosting) a Charm Cloud is as simple as
 running `charm serve`.
+
+## Installation
+
+Use a package manager:
+
+```bash
+# macOS or Linux
+brew install charmbracelet/tap/charm
+
+# Arch Linux (btw)
+pacman -S charm
+
+# Nix
+nix-env -iA nixpkgs.charm
+
+# Debian/Ubuntu
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list
+sudo apt update && sudo apt install charm
+
+# Fedora/RHEL
+echo '[charm]
+name=Charm
+baseurl=https://repo.charm.sh/yum/
+enabled=1
+gpgcheck=1
+gpgkey=https://repo.charm.sh/yum/gpg.key' | sudo tee /etc/yum.repos.d/charm.repo
+sudo yum install charm
+```
+
+Or download a package or binary from the [releases][releases] page. All
+major platforms and architectures are supported, including FreeBSD and ARM.
+
+You can also just build and install it yourself:
+
+```bash
+git clone https://github.com/charmbracelet/charm.git
+cd charm
+go install
+```
 
 ## Charm KV
 
@@ -70,7 +143,7 @@ For details on Charm KV, see [the Charm KV docs][kv].
 
 Each Charm user has a virtual personal filesystem on the Charm server. Charm
 FS provides a Go [fs.FS](https://golang.org/pkg/io/fs/) implementation for the
-user along with additional write and delete methods. If you're a building
+user along with additional write and delete methods. If you're building
 a tool that requires file storage, Charm FS will provide it on
 a networked-basis without friction-filled authentication flows.
 
@@ -138,7 +211,8 @@ course, users can revoke machines’ access too.
 
 ### Backups
 
-You can use `charm backup-keys` to backup your account keys. Your account can be recovered using `charm import-keys charm-keys-backup.tar`
+You can use `charm backup-keys` to backup your account keys. Your account can
+be recovered using `charm import-keys charm-keys-backup.tar`
 
 ## Charm Client
 
@@ -163,31 +237,19 @@ charm crypt encrypt < secretphoto.jpg > encrypted.jpg.json
 charm help
 ```
 
-### Installation
+### Client Settings
 
-Use a package manager:
+The Charm client can be configured using environment variables. These are the
+defaults: 
 
-```bash
-# macOS or Linux
-brew tap charmbracelet/tap && brew install charmbracelet/tap/charm
-
-# Arch Linux (btw)
-pacman -S charm
-
-# Nix
-nix-env -iA nixpkgs.charm
-```
-
-Or download a package or binary from the [releases][releases] page. All
-major platforms and architectures are supported, including FreeBSD and ARM.
-
-You can also just build and install it yourself:
-
-```bash
-git clone https://github.com/charmbracelet/charm.git
-cd charm
-go install
-```
+* `CHARM_HOST`: Server public URL (_default cloud.charm.sh_)
+* `CHARM_SSH_PORT`: SSH port to connect to (_default 35353_)
+* `CHARM_HTTP_PORT`: HTTP port to connect to (_default 35354_)
+* `CHARM_DEBUG`: Whether debugging logs are enabled (_default false_)
+* `CHARM_LOGFILE`: The file path to output debug logs
+* `CHARM_KEY_TYPE`: The type of key to create for new users (_default ed25519_)
+* `CHARM_DATA_DIR`: The path to where the user data is stored
+* `CHARM_IDENTITY_KEY`: The path to the identity key used for auth
 
 ## Self-Hosting
 
@@ -225,12 +287,16 @@ choosing:
 export CHARM_HOST=burrito.example.com
 ```
 
-See instructions for [Systemd](https://github.com/charmbracelet/charm/blob/main/systemd.md) and [Docker](https://github.com/charmbracelet/charm/blob/main/docker.md).
+See instructions for
+[Systemd](https://github.com/charmbracelet/charm/blob/main/systemd.md) and
+[Docker](https://github.com/charmbracelet/charm/blob/main/docker.md).
 
 #### Storage Considerations
 
 The max data you can store on our Charm Cloud servers is 1GB per account.
-By default, self-hosted servers don't have a data storage limit. Should you want to set a max storage limit on your server, you can do so using `CHARM_SERVER_USER_MAX_STORAGE`
+By default, self-hosted servers don't have a data storage limit. Should you
+want to set a max storage limit on your server, you can do so using
+`CHARM_SERVER_USER_MAX_STORAGE`
 
 ### TLS
 

@@ -5,17 +5,19 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	glog "log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/charmbracelet/log"
+
 	charm "github.com/charmbracelet/charm/proto"
 	"github.com/charmbracelet/charm/server/db"
+	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 	rm "github.com/charmbracelet/wish/recover"
-	"github.com/gliderlabs/ssh"
-	"github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 // Session represents a Charm User's SSH session.
@@ -33,7 +35,7 @@ type SSHServer struct {
 	config    *Config
 	db        db.DB
 	server    *ssh.Server
-	errorLog  *log.Logger
+	errorLog  *glog.Logger
 	linkQueue charm.LinkQueue
 }
 
@@ -44,8 +46,11 @@ func NewSSHServer(cfg *Config) (*SSHServer, error) {
 		errorLog:  cfg.errorLog,
 		linkQueue: cfg.linkQueue,
 	}
+
 	if s.errorLog == nil {
-		s.errorLog = log.Default()
+		s.errorLog = log.StandardLog(log.StandardLogOptions{
+			ForceLevel: log.ErrorLevel,
+		})
 	}
 	addr := fmt.Sprintf("%s:%d", cfg.BindAddr, cfg.SSHPort)
 	s.db = cfg.DB
@@ -61,14 +66,14 @@ func NewSSHServer(cfg *Config) (*SSHServer, error) {
 		wish.WithPublicKeyAuth(s.authHandler),
 		wish.WithMiddleware(
 			rm.MiddlewareWithLogger(
-				s.errorLog,
+				log.NewWithOptions(os.Stderr, log.Options{Level: log.ErrorLevel}),
 				s.sshMiddleware(),
 			),
 		),
 	}
 	fp := filepath.Join(cfg.DataDir, ".ssh", "authorized_keys")
 	if _, err := os.Stat(fp); err == nil {
-		log.Print("Loading authorized_keys from ", fp)
+		log.Debug("Loading authorized_keys from", "path", fp)
 		opts = append(opts, wish.WithAuthorizedKeys(fp))
 	}
 	srv, err := wish.NewServer(opts...)
@@ -81,13 +86,16 @@ func NewSSHServer(cfg *Config) (*SSHServer, error) {
 
 // Start serves the SSH protocol on the configured port.
 func (me *SSHServer) Start() error {
-	log.Printf("Starting SSH server on %s", me.server.Addr)
-	return me.server.ListenAndServe()
+	log.Print("Starting SSH server", "addr", me.server.Addr)
+	if err := me.server.ListenAndServe(); err != ssh.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
 // Shutdown gracefully shuts down the SSH server.
 func (me *SSHServer) Shutdown(ctx context.Context) error {
-	log.Printf("Stopping SSH server on %s", me.server.Addr)
+	log.Print("Stopping SSH server", "addr", me.server.Addr)
 	return me.server.Shutdown(ctx)
 }
 
@@ -99,7 +107,7 @@ func (me *SSHServer) sendJSON(s ssh.Session, o interface{}) error {
 	return json.NewEncoder(s).Encode(o)
 }
 
-func (me *SSHServer) authHandler(ctx ssh.Context, key ssh.PublicKey) bool {
+func (me *SSHServer) authHandler(_ ssh.Context, _ ssh.PublicKey) bool {
 	return true
 }
 
@@ -112,18 +120,18 @@ func (me *SSHServer) handleJWT(s ssh.Session) {
 	}
 	key, err := keyText(s)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 	u, err := me.db.UserForKey(key, true)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
-	log.Printf("JWT for user %s\n", u.CharmID)
+	log.Debug("JWT for user", "id", u.CharmID)
 	j, err := me.newJWT(u.CharmID, aud...)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 	_, _ = s.Write([]byte(j))

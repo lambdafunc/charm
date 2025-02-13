@@ -66,12 +66,12 @@ type Model struct {
 }
 
 // acceptRequest rejects the current linking request.
-func (m Model) acceptRequest() (Model, tea.Cmd) {
+func (m Model) acceptRequest() (Model, tea.Cmd) { // nolint: unparam
 	m.lh.response <- true
 	return m, nil
 }
 
-// rejectRequset rejects the current linking request.
+// rejectRequest rejects the current linking request.
 func (m Model) rejectRequest() (Model, tea.Cmd) {
 	m.lh.response <- false
 	m.status = linkRequestDenied
@@ -122,7 +122,7 @@ func (m *Model) SetCharmClient(cc *client.Client) {
 // Init is the Bubble Tea program's initialization function. This is used in
 // standalone mode.
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(charmclient.NewClient(m.cfg), spinner.Tick)
+	return tea.Batch(charmclient.NewClient(m.cfg), m.spinner.Tick)
 }
 
 // Update is the Tea update loop.
@@ -315,14 +315,13 @@ func (m Model) View() string {
 // InitLinkGen runs the necessary commands for starting the link generation
 // process.
 func InitLinkGen(m Model) tea.Cmd {
-	return tea.Batch(append(HandleLinkRequest(m), spinner.Tick)...)
+	return tea.Batch(append(HandleLinkRequest(m), m.spinner.Tick)...)
 }
 
 // HandleLinkRequest returns a bunch of blocking commands that resolve on link
 // request states. As a Tea command, this should be treated as batch:
 //
-//     tea.Batch(HandleLinkRequest(model)...)
-//
+//	tea.Batch(HandleLinkRequest(model)...)
 func HandleLinkRequest(m Model) []tea.Cmd {
 	go func() {
 		if err := m.cc.LinkGen(m.lh); err != nil {

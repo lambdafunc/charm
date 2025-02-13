@@ -2,11 +2,12 @@ package server
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/charmbracelet/log"
 
 	charm "github.com/charmbracelet/charm/proto"
+	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
-	"github.com/gliderlabs/ssh"
 )
 
 func (me *SSHServer) sshMiddleware() wish.Middleware {
@@ -15,7 +16,7 @@ func (me *SSHServer) sshMiddleware() wish.Middleware {
 			cmd := s.Command()
 			if len(cmd) >= 1 {
 				r := cmd[0]
-				log.Printf("ssh %s\n", r)
+				log.Debug("ssh", "cmd", r)
 				switch r {
 				case "api-auth":
 					me.handleAPIAuth(s)
@@ -39,15 +40,15 @@ func (me *SSHServer) sshMiddleware() wish.Middleware {
 func (me *SSHServer) handleAPIAuth(s ssh.Session) {
 	key, err := keyText(s)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		return
 	}
 	u, err := me.db.UserForKey(key, true)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		return
 	}
-	log.Printf("JWT for user %s\n", u.CharmID)
+	log.Debug("JWT for user", "id", u.CharmID)
 	j, err := me.newJWT(u.CharmID, "charm")
 	if err != nil {
 		me.errorLog.Printf("Error making JWT: %s\n", err)
@@ -73,20 +74,20 @@ func (me *SSHServer) handleAPIAuth(s ssh.Session) {
 func (me *SSHServer) handleAPIKeys(s ssh.Session) {
 	key, err := keyText(s)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		_ = me.sendAPIMessage(s, "Missing key")
 		return
 	}
 	u, err := me.db.UserForKey(key, true)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		_ = me.sendAPIMessage(s, fmt.Sprintf("API keys error: %s", err))
 		return
 	}
-	log.Printf("API keys for user %s\n", u.CharmID)
+	log.Debug("API keys for user", "id", u.CharmID)
 	keys, err := me.db.KeysForUser(u)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		_ = me.sendAPIMessage(s, "There was a problem fetching your keys")
 		return
 	}
@@ -110,15 +111,15 @@ func (me *SSHServer) handleAPIKeys(s ssh.Session) {
 func (me *SSHServer) handleID(s ssh.Session) {
 	key, err := keyText(s)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		return
 	}
 	u, err := me.db.UserForKey(key, true)
 	if err != nil {
-		me.errorLog.Println(err)
+		me.errorLog.Print(err)
 		return
 	}
-	log.Printf("ID for user %s\n", u.CharmID)
+	log.Debug("ID for user", "id", u.CharmID)
 	_, _ = s.Write([]byte(u.CharmID))
 	me.config.Stats.ID()
 }

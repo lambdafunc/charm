@@ -4,10 +4,11 @@ package kv
 import (
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/charmbracelet/charm/client"
 	"github.com/charmbracelet/charm/fs"
@@ -144,7 +145,7 @@ func (kv *KV) Set(key []byte, value []byte) error {
 	}
 	return kv.Commit(txn, func(err error) {
 		if err != nil {
-			log.Printf("Badger commit error: %s", err)
+			log.Error("Badger commit error", "err", err)
 		}
 	})
 }
@@ -188,7 +189,7 @@ func (kv *KV) Delete(key []byte) error {
 	}
 	return kv.Commit(txn, func(err error) {
 		if err != nil {
-			log.Printf("Badger commit error: %s", err)
+			log.Error("Badger commit error", "err", err)
 		}
 	})
 }
@@ -202,7 +203,7 @@ func (kv *KV) Keys() ([][]byte, error) {
 		it := txn.NewIterator(opts)
 		defer it.Close() //nolint:errcheck
 		for it.Rewind(); it.Valid(); it.Next() {
-			ks = append(ks, it.Item().Key())
+			ks = append(ks, it.Item().KeyCopy(nil))
 		}
 		return nil
 	})
